@@ -20,5 +20,5 @@ module.exports = [
   `-remove_at_exit`, `1`,
   `-adaptation_sets`, `id=0,streams=v id=1,streams=a`,
   `-f`, `dash`,
-  `http://localhost:8081/manifest.mpd`
+  `http://localhost:3000/manifest.mpd`
 ]

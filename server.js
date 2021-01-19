@@ -1,20 +1,21 @@
 require('dotenv').config();
-const express = require("express");
-const cors = require("cors");
-const compression = require("compression");
-const childProcess = require("child_process");
-const config = require("./cmd");
-const path = require("path");
-const fs = require("fs");
-require("puppeteer-stream");
-const puppeteer = require("puppeteer");
-const AccessToken = require("twilio").jwt.AccessToken;
+const express = require('express');
+const cors = require('cors');
+const compression = require('compression');
+const childProcess = require('child_process');
+const config = require('./cmd');
+const path = require('path');
+const fs = require('fs');
+require('puppeteer-stream');
+const puppeteer = require('puppeteer');
+const AccessToken = require('twilio').jwt.AccessToken;
 const VideoGrant = AccessToken.VideoGrant;
 const CACHE_DURATION = 30000;
 const TIME_SLEEP_MS = 50;
 const MAX_SLEEP_COUNT = Infinity;
 
-const PORT = process.env.PORT || 8081;
+// const PORT = process.env.PORT || 8081;
+const PORT = 3000;
 
 const MAX_ALLOWED_SESSION_DURATION = 14400;
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -26,7 +27,7 @@ class UllServer {
     this.app = express();
     this.app.use(cors());
     this.app.use(compression());
-    this.app.use(express.static(path.join(__dirname, "build")));
+    this.app.use(express.static(path.join(__dirname, 'build')));
     this.cache = {};
     this.listen();
   }
@@ -35,27 +36,22 @@ class UllServer {
     this.acceptUpload();
     this.acceptDownload();
 
-    this.app.get("/token", (req, res) => {
+    this.app.get('/token', (req, res) => {
       const { identity, roomName } = req.query;
-      const token = new AccessToken(
-        twilioAccountSid,
-        twilioApiKeySID,
-        twilioApiKeySecret,
-        {
-          ttl: MAX_ALLOWED_SESSION_DURATION,
-        }
-      );
+      const token = new AccessToken(twilioAccountSid, twilioApiKeySID, twilioApiKeySecret, {
+        ttl: MAX_ALLOWED_SESSION_DURATION,
+      });
       token.identity = identity;
       const videoGrant = new VideoGrant({ room: roomName });
       token.addGrant(videoGrant);
       res.send(token.toJwt());
     });
 
-    this.app.post("/start", (req, res, next) => {
+    this.app.post('/start', (req, res, next) => {
       // const { room } = req.body;
-      const room = "test";
+      const room = 'test';
       if (this.instance) {
-        return res.status(200).json({ message: "already started" });
+        return res.status(200).json({ message: 'already started' });
       }
       this.startTranscoding({ room });
       return res.status(200).json({
@@ -63,63 +59,59 @@ class UllServer {
       });
     });
 
-    this.app.post("/stop", (req, res, next) => {
+    this.app.post('/stop', (req, res, next) => {
       if (!this.instance) {
-        return res.status(200).json({ message: "already stopped" });
+        return res.status(200).json({ message: 'already stopped' });
       }
       this.stopTranscoding();
-      return res.status(200).json({ message: "stopped" });
+      return res.status(200).json({ message: 'stopped' });
     });
 
     this.app.get('/test', (req, res) => {
-      console.log('__ TEST')
-      res.sendFile(path.join(__dirname, "index.html"));
-    })
+      console.log('__ TEST');
+      res.sendFile(path.join(__dirname, 'index.html'));
+    });
 
     // this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'build/index.html')));
     this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
     this.server = this.app.listen(PORT, () => {
-      console.log(
-        "ULL server listening... port",
-        PORT,
-        "POST to /start to start the transcoder"
-      );
+      console.log('ULL server listening... port', PORT, 'POST to /start to start the transcoder');
     });
   }
 
   async startTranscoding({ room }) {
-    console.log(">> START TRANSCODING");
-    const browser = await puppeteer.launch();
+    console.log('>> START TRANSCODING');
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
-    await page.goto("https://www.youtube.com/watch?v=YRbKZRp2Fb4");
+    await page.goto('https://www.youtube.com/watch?v=YRbKZRp2Fb4', { waitUntil: 'networkidle2' });
     await page.setViewport({
       width: 1920,
       height: 1080,
     });
 
-    const stream = await page.getStream({ audio: true, video: true });
+    // const stream = await page.getStream({ audio: true, video: true });
 
-    this.instance = childProcess.spawn("ffmpeg", config);
+    this.instance = childProcess.spawn('ffmpeg', config);
 
-    stream.pipe(this.instance.stdin);
+    // stream.pipe(this.instance.stdin);
 
-    console.log(">> PIPPED INPUT");
+    console.log('>> PIPPED INPUT');
 
     let isFirstData = true;
-    this.instance.stderr.on("data", (data) => {
+    this.instance.stderr.on('data', data => {
       if (isFirstData) {
-        console.log("ffmpeg started");
+        console.log('ffmpeg started');
         isFirstData = false;
       }
     });
 
-    this.instance.on("error", () => {
-      console.log("ffmpeg error");
+    this.instance.on('error', () => {
+      console.log('ffmpeg error');
     });
 
-    this.instance.on("close", () => {
-      console.log("ffmpeg closed");
+    this.instance.on('close', () => {
+      console.log('ffmpeg closed');
     });
   }
 
@@ -129,7 +121,7 @@ class UllServer {
   }
 
   acceptUpload() {
-    this.app.put("/:filename", (req, res, next) => {
+    this.app.put('/:filename', (req, res, next) => {
       const { filename } = req.params;
 
       try {
@@ -140,7 +132,7 @@ class UllServer {
         return res.status(400).send();
       }
 
-      req.on("data", (chunk) => {
+      req.on('data', chunk => {
         try {
           this.cacheChunk(filename, chunk);
         } catch (e) {
@@ -148,7 +140,7 @@ class UllServer {
         }
       });
 
-      req.on("end", () => {
+      req.on('end', () => {
         try {
           if (this.isTempCached(filename)) {
             this.scheduleClearCache(filename);
@@ -156,7 +148,7 @@ class UllServer {
 
           this.setDone(filename);
 
-          console.log("Upload complete", filename);
+          console.log('Upload complete', filename);
           if (!this.isPlaylist(filename)) {
             res.end();
           }
@@ -172,19 +164,19 @@ class UllServer {
   }
 
   isChunk(filename) {
-    return filename.startsWith("chunk") && filename.endsWith(".m4s");
+    return filename.startsWith('chunk') && filename.endsWith('.m4s');
   }
 
   isSegment(filename) {
-    return filename.endsWith(".m4s");
+    return filename.endsWith('.m4s');
   }
 
   isPlaylist(filename) {
-    return filename.endsWith(".mpd");
+    return filename.endsWith('.mpd');
   }
 
   isTempCached(filename) {
-    return filename.startsWith("chunk");
+    return filename.startsWith('chunk');
   }
 
   scheduleClearCache(filename) {
@@ -221,33 +213,33 @@ class UllServer {
   }
 
   async sleep() {
-    return new Promise((resolve) => setTimeout(resolve, TIME_SLEEP_MS));
+    return new Promise(resolve => setTimeout(resolve, TIME_SLEEP_MS));
   }
 
   acceptDownload() {
-    this.app.get("/healthcheck", (req, res) => {
-      res.status(200).json({ message: "OK" });
+    this.app.get('/healthcheck', (req, res) => {
+      res.status(200).json({ message: 'OK' });
     });
 
-    this.app.get("/:filename", async (req, res, next) => {
+    this.app.get('/:filename', async (req, res, next) => {
       try {
         const { filename } = req.params;
-        res.set("Transfer-Encoding", "chunked");
+        res.set('Transfer-Encoding', 'chunked');
 
         if (this.isSegment(filename)) {
-          res.set("Content-Type", "video/mp4");
-          res.set("Cache-Control", "max-age=31536000");
+          res.set('Content-Type', 'video/mp4');
+          res.set('Cache-Control', 'max-age=31536000');
         }
 
         if (this.isPlaylist(filename)) {
-          res.set("Content-Type", "application/dash+xml");
+          res.set('Content-Type', 'application/dash+xml');
         }
 
         let idx = 0;
         let sleepCt = 0;
         while (!this.isDone(filename)) {
           if (sleepCt > MAX_SLEEP_COUNT) {
-            throw new Error("max sleep count reached");
+            throw new Error('max sleep count reached');
           }
           if (!this.isCached(filename)) {
             await this.sleep();
@@ -276,7 +268,7 @@ class UllServer {
           res.end();
           return;
         }
-        console.log("Download complete", filename);
+        console.log('Download complete', filename);
         const buffer = Buffer.concat(chunks);
         res.write(buffer);
         res.flush();
