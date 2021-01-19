@@ -52,8 +52,8 @@ class UllServer {
     });
 
     this.app.post("/start", (req, res, next) => {
-      const { room } = req.body;
-
+      // const { room } = req.body;
+      const room = "test";
       if (this.instance) {
         return res.status(200).json({ message: "already started" });
       }
