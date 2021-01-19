@@ -71,7 +71,13 @@ class UllServer {
       return res.status(200).json({ message: "stopped" });
     });
 
-    this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'build/index.html')));
+    this.app.get('/test', (req, res) => {
+      console.log('__ TEST')
+      res.sendFile(path.join(__dirname, "index.html"));
+    })
+
+    // this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'build/index.html')));
+    this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
     this.server = this.app.listen(PORT, () => {
       console.log(
@@ -94,7 +100,7 @@ class UllServer {
 
     const stream = await page.getStream({ audio: true, video: true });
 
-    this.instance = childProcess.spawn("ffmpeg", config({ room, port: PORT }));
+    this.instance = childProcess.spawn("ffmpeg", config);
 
     stream.pipe(this.instance.stdin);
 
