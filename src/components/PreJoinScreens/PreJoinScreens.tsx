@@ -21,7 +21,7 @@ export default function PreJoinScreens() {
   const [step, setStep] = useState(Steps.roomNameStep);
 
   const [name, setName] = useState<string>(user?.displayName || '');
-  const [roomName, setRoomName] = useState<string>('');
+  const [roomName, setRoomName] = useState<string>('Test');
 
   const [mediaError, setMediaError] = useState<Error>();
 

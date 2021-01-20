@@ -1,5 +1,6 @@
 module.exports = [
   `-re`,
+  // `-i`, `rtmp://localhost/live/test`,
   `-i`, `-`,
   `-pix_fmt`, `yuv420p`,
   `-map`, `0:v`,
@@ -8,7 +9,7 @@ module.exports = [
   `-keyint_min`, `144`,
   `-b:v`, `400k`,
   `-method`, `PUT`,
-  `-seg_duration`, `15`,
+  `-seg_duration`, `6`,
   `-streaming`, `1`,
   `-http_persistent`, `1`,
   `-index_correction`, `1`,
@@ -20,5 +21,5 @@ module.exports = [
   `-remove_at_exit`, `1`,
   `-adaptation_sets`, `id=0,streams=v id=1,streams=a`,
   `-f`, `dash`,
-  `http://localhost:3000/manifest.mpd`
+  `http://localhost:3001/manifest.mpd`
 ]

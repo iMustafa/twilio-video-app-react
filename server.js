@@ -15,12 +15,32 @@ const TIME_SLEEP_MS = 50;
 const MAX_SLEEP_COUNT = Infinity;
 
 // const PORT = process.env.PORT || 8081;
-const PORT = 3000;
+const PORT = 3001;
 
 const MAX_ALLOWED_SESSION_DURATION = 14400;
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
 const twilioApiKeySID = process.env.TWILIO_API_KEY_SID;
 const twilioApiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+
+const inConfig = require('./incmd');
+const NodeMediaServer = require('node-media-server');
+
+const RTMPconfig = {
+  rtmp: {
+    port: 1935,
+    chunk_size: 60000,
+    gop_cache: true,
+    ping: 30,
+    ping_timeout: 60,
+  },
+  http: {
+    port: 8000,
+    allow_origin: '*',
+  },
+};
+
+var nms = new NodeMediaServer(RTMPconfig);
+nms.run();
 
 class UllServer {
   start() {
@@ -29,12 +49,8 @@ class UllServer {
     this.app.use(compression());
     this.app.use(express.static(path.join(__dirname, 'build')));
     this.cache = {};
-    this.listen();
-  }
 
-  listen() {
-    this.acceptUpload();
-    this.acceptDownload();
+    this.app.get('/test', (_, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
     this.app.get('/token', (req, res) => {
       const { identity, roomName } = req.query;
@@ -44,18 +60,27 @@ class UllServer {
       token.identity = identity;
       const videoGrant = new VideoGrant({ room: roomName });
       token.addGrant(videoGrant);
-      res.send(token.toJwt());
+
+      return res.status(200).send(token.toJwt());
     });
 
+    // this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'build/index.html')));
+
+    this.listen();
+  }
+
+  listen() {
+    this.acceptUpload();
+    this.acceptDownload();
+
     this.app.post('/start', (req, res, next) => {
-      // const { room } = req.body;
       const room = 'test';
       if (this.instance) {
         return res.status(200).json({ message: 'already started' });
       }
       this.startTranscoding({ room });
       return res.status(200).json({
-        message: `started manifest is at http://localhost:${PORT}/${room}/manifest.mpd`,
+        message: `started manifest is at http://localhost:${PORT}/manifest.mpd`,
       });
     });
 
@@ -67,14 +92,6 @@ class UllServer {
       return res.status(200).json({ message: 'stopped' });
     });
 
-    this.app.get('/test', (req, res) => {
-      console.log('__ TEST');
-      res.sendFile(path.join(__dirname, 'index.html'));
-    });
-
-    // this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'build/index.html')));
-    this.app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
     this.server = this.app.listen(PORT, () => {
       console.log('ULL server listening... port', PORT, 'POST to /start to start the transcoder');
     });
@@ -84,35 +101,42 @@ class UllServer {
     console.log('>> START TRANSCODING');
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
-    await page.goto('https://www.youtube.com/watch?v=YRbKZRp2Fb4', { waitUntil: 'networkidle2' });
+    await page.goto(`http://localhost:3000`);
     await page.setViewport({
-      width: 1920,
-      height: 1080,
+      width: 1280,
+      height: 720,
     });
+    let input = await page.waitForSelector('#input-user-name');
+    await input.type('puppeteer');
+    await page.click('#continue-button');
+    await page.click('#join-button');
 
     const stream = await page.getStream({ audio: true, video: true });
-
+    // const rtmp = childProcess.spawn('ffmpeg', inConfig);
     this.instance = childProcess.spawn('ffmpeg', config);
 
-    stream.pipe(this.instance.stdin);
 
-    console.log('>> PIPPED INPUT');
+    stream.pipe(this.instance.stdin)
+    // stream.pipe(rtmp.stdin)
 
-    let isFirstData = true;
-    this.instance.stderr.on('data', data => {
-      if (isFirstData) {
-        console.log('ffmpeg started');
-        isFirstData = false;
-      }
-    });
+    // setTimeout(() => {
+    //   this.instance = childProcess.spawn('ffmpeg', config);
+    //   let isFirstData = true;
+    //   this.instance.stderr.on('data', data => {
+    //     if (isFirstData) {
+    //       console.log('ffmpeg started');
+    //       isFirstData = false;
+    //     }
+    //   });
 
-    this.instance.on('error', () => {
-      console.log('ffmpeg error');
-    });
+    //   this.instance.on('error', () => {
+    //     console.log('ffmpeg error');
+    //   });
 
-    this.instance.on('close', () => {
-      console.log('ffmpeg closed');
-    });
+    //   this.instance.on('close', () => {
+    //     console.log('ffmpeg closed');
+    //   });
+    // }, 10000);
   }
 
   stopTranscoding() {

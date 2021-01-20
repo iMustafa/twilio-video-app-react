@@ -86,6 +86,7 @@ export default function RoomNameScreen({ name, roomName, setName, setRoomName, h
               variant="outlined"
               fullWidth
               size="small"
+              disabled
               value={roomName}
               onChange={handleRoomNameChange}
             />
@@ -93,6 +94,7 @@ export default function RoomNameScreen({ name, roomName, setName, setRoomName, h
         </div>
         <Grid container justify="flex-end">
           <Button
+            id="continue-button"
             variant="contained"
             type="submit"
             color="primary"
