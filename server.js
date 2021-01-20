@@ -82,7 +82,7 @@ class UllServer {
 
   async startTranscoding({ room }) {
     console.log('>> START TRANSCODING');
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.goto('https://www.youtube.com/watch?v=YRbKZRp2Fb4', { waitUntil: 'networkidle2' });
     await page.setViewport({
@@ -90,11 +90,11 @@ class UllServer {
       height: 1080,
     });
 
-    // const stream = await page.getStream({ audio: true, video: true });
+    const stream = await page.getStream({ audio: true, video: true });
 
     this.instance = childProcess.spawn('ffmpeg', config);
 
-    // stream.pipe(this.instance.stdin);
+    stream.pipe(this.instance.stdin);
 
     console.log('>> PIPPED INPUT');
 
